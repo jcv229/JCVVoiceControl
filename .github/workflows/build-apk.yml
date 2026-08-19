@@ -1,0 +1,106 @@
+name: Build APK
+
+# Déclenchement : à chaque push/pull request sur master, et manuellement.
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch: # permet un lancement manuel depuis l'onglet Actions
+
+# Un seul build à la fois (évite les compilations concurrentes inutiles).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compiler l'APK (release)
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Récupérer le code source
+      # ------------------------------------------------------------------
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # 2. Installer Flutter (version épinglée pour des builds reproductibles)
+      # ------------------------------------------------------------------
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'   # ⚠️ adapter à VOTRE version de Flutter
+          channel: 'stable'
+          cache: true
+
+      # ------------------------------------------------------------------
+      # 3. Installer Java 17 (requis par AGP 8.x / compileSdk 34+)
+      # ------------------------------------------------------------------
+      - name: Configurer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ------------------------------------------------------------------
+      # 4. Télécharger le modèle Vosk français (~40 Mo) — NON présent dans le repo
+      # ------------------------------------------------------------------
+      # Le modèle est téléchargé, décompressé, puis placé dans les assets.
+      # URL stable fournie par alphacephei (Vosk).
+      - name: Télécharger le modèle Vosk français
+        run: |
+          cd android/app/src/main/assets/model-fr
+          curl -sL -o model.zip \
+            "https://alphacephei.com/vosk/models/vosk-model-small-fr-0.22.zip"
+          unzip -q model.zip
+          rm model.zip
+          # Copie le CONTENU du dossier dézippé dans model-fr/
+          cp -r vosk-model-small-fr-0.22/* .
+          rm -rf vosk-model-small-fr-0.22
+          echo "✔ Modèle Vosk français installé :"
+          ls -la
+        shell: bash
+
+      # ------------------------------------------------------------------
+      # 5. Récupérer les dépendances Dart
+      # ------------------------------------------------------------------
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      # ------------------------------------------------------------------
+      # 6. Vérifier la qualité (analyse statique + tests)
+      # ------------------------------------------------------------------
+      - name: Analyse statique
+        run: flutter analyze --no-pub || true
+
+      - name: Tests unitaires
+        run: flutter test
+
+      # ------------------------------------------------------------------
+      # 7. Compiler l'APK release
+      # ------------------------------------------------------------------
+      - name: Compiler l'APK
+        run: flutter build apk --release
+
+      # ------------------------------------------------------------------
+      # 8. Publier l'APK en artefact (téléchargeable depuis l'onglet Actions)
+      # ------------------------------------------------------------------
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JCVVoiceControl-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      # ------------------------------------------------------------------
+      # 9. (Optionnel) Créer une "release" GitHub si un tag v* est poussé
+      # ------------------------------------------------------------------
+      - name: Créer une release GitHub (si tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true

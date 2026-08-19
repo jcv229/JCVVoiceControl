@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">JCV Voice Control</string>
+    <string name="accessibility_service_label">JCV Voice Control — Contrôle par la voix</string>
+    <string name="accessibility_service_description">Permet à l\'assistant vocal de lire l\'écran et d\'effectuer des actions (clics, saisie, défilement) dans d\'autres applications comme WhatsApp, pour aider une personne aveugle à utiliser son téléphone. Aucune donnée n\'est envoyée sur Internet.</string>
+</resources>

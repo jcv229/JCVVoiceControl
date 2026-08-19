@@ -1,0 +1,49 @@
+# ============================================
+# Flutter / Dart
+# ============================================
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# ============================================
+# Android (généré — ne jamais committer)
+# ============================================
+android/.gradle/
+android/app/build/
+android/local.properties
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/.cxx/
+
+# Fichiers de signature (à garder PRIVÉS, jamais sur GitHub)
+*.keystore
+*.jks
+key.properties
+
+# ============================================
+# Modèle Vosk (trop volumineux — téléchargé par le CI)
+# ============================================
+# Conserver le README d'instructions, ignorer le modèle dézippé :
+android/app/src/main/assets/model-fr/am/
+android/app/src/main/assets/model-fr/conf/
+android/app/src/main/assets/model-fr/graph/
+android/app/src/main/assets/model-fr/ivector/
+android/app/src/main/assets/model-fr/*.zip
+
+# ============================================
+# Sorties
+# ============================================
+*.apk
+*.aab
+*.apks
+
+# ============================================
+# IDE / OS
+# ============================================
+.idea/
+*.iml
+.vscode/
+.DS_Store
