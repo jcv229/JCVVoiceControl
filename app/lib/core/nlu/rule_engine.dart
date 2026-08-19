@@ -239,7 +239,7 @@ class RuleEngine {
   static String _extractAfter(String text, String pattern) {
     final m = RegExp('$pattern\\s*(.+)').firstMatch(text);
     if (m == null) return '';
-    return (m.group(1) ?? '').trim();
+    return (m.group(m.groupCount) ?? '').trim();
   }
 
   /// Mots à ignorer lors de l'extraction d'un nom de contact.
