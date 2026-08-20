@@ -195,6 +195,9 @@ class MainActivity : FlutterActivity() {
                             },
                             onError = { message ->
                                 channel.invokeMethod("onSpeechError", message)
+                            },
+                            onPartial = { text ->
+                                channel.invokeMethod("onSpeechPartial", text)
                             }
                         )
                         result.success(true)

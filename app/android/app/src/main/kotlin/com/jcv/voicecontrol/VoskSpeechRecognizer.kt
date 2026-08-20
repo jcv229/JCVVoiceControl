@@ -51,12 +51,13 @@ object VoskSpeechRecognizer {
     fun start(
         context: Context,
         onResult: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        onPartial: (String) -> Unit = {}
     ) {
         keepListening = true
         // Modèle déjà chargé : on redémarre simplement le service.
         if (recognizer != null) {
-            startListening(onResult, onError)
+            startListening(onResult, onError, onPartial)
             return
         }
 
@@ -69,7 +70,7 @@ object VoskSpeechRecognizer {
                 model = loadedModel
                 try {
                     recognizer = Recognizer(loadedModel, SAMPLE_RATE)
-                    startListening(onResult, onError)
+                    startListening(onResult, onError, onPartial)
                 } catch (e: IOException) {
                     onError("Impossible de démarrer la reconnaissance vocale : ${e.message}")
                 }
@@ -86,24 +87,36 @@ object VoskSpeechRecognizer {
     /** Lance le service de reconnaissance avec les callbacks fournis. */
     private fun startListening(
         onResult: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        onPartial: (String) -> Unit = {}
     ) {
         val r = recognizer ?: run {
             onError("La reconnaissance vocale n'est pas prête.")
             return
         }
         speechService?.stop()
-        speechService = SpeechService(r, SAMPLE_RATE)
+        try {
+            speechService = SpeechService(r, SAMPLE_RATE)
+        } catch (e: IOException) {
+            onError("Impossible de démarrer le micro : ${e.message}")
+            return
+        }
         speechService?.startListening(object : RecognitionListener {
             override fun onPartialResult(hypothesis: String?) {
-                // Résultat partiel : ignoré pour le MVP (on attend le final).
+                // Retour en temps réel pendant que l'utilisateur parle,
+                // pour confirmer que le micro capte bien la voix (affichage seul,
+                // n'exécute jamais de commande).
+                val partial = parseHypothesis(hypothesis, key = "partial")
+                if (partial.isNotBlank()) {
+                    onPartial(partial)
+                }
             }
 
             override fun onResult(hypothesis: String?) {
                 val text = parseHypothesis(hypothesis)
                 if (text.isNotBlank()) {
                     onResult(text)
-                    restartIfNeeded(onResult, onError)
+                    restartIfNeeded(onResult, onError, onPartial)
                 }
             }
 
@@ -111,7 +124,7 @@ object VoskSpeechRecognizer {
                 val text = parseHypothesis(hypothesis)
                 if (text.isNotBlank()) {
                     onResult(text)
-                    restartIfNeeded(onResult, onError)
+                    restartIfNeeded(onResult, onError, onPartial)
                 }
             }
 
@@ -121,7 +134,7 @@ object VoskSpeechRecognizer {
 
             override fun onTimeout() {
                 // Fin de la parole sans résultat : on relance si nécessaire.
-                restartIfNeeded(onResult, onError)
+                restartIfNeeded(onResult, onError, onPartial)
             }
         })
     }
@@ -129,12 +142,13 @@ object VoskSpeechRecognizer {
     /** Relance l'écoute après une phrase, pour une écoute continue. */
     private fun restartIfNeeded(
         onResult: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        onPartial: (String) -> Unit = {}
     ) {
         if (keepListening) {
             // Petit délai pour laisser Vosk terminer proprement avant de relancer.
             mainHandler.postDelayed({
-                if (keepListening) startListening(onResult, onError)
+                if (keepListening) startListening(onResult, onError, onPartial)
             }, 300)
         }
     }
@@ -157,11 +171,11 @@ object VoskSpeechRecognizer {
         model = null
     }
 
-    /** Extrait le champ "text" du JSON renvoyé par Vosk. */
-    private fun parseHypothesis(hypothesis: String?): String {
+    /** Extrait un champ texte du JSON renvoyé par Vosk ("text" ou "partial"). */
+    private fun parseHypothesis(hypothesis: String?, key: String = "text"): String {
         if (hypothesis.isNullOrBlank()) return ""
         return try {
-            JSONObject(hypothesis).optString("text", "")
+            JSONObject(hypothesis).optString(key, "")
         } catch (e: Exception) {
             ""
         }

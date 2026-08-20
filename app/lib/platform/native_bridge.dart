@@ -250,9 +250,11 @@ class NativeBridge {
   static void setSpeechListener({
     required void Function(String) onResult,
     required void Function(String) onError,
+    void Function(String)? onPartial,
   }) {
     _speechResultCallback = onResult;
     _speechErrorCallback = onError;
+    _speechPartialCallback = onPartial;
     _ensureHandler();
   }
 
@@ -299,13 +301,14 @@ class NativeBridge {
   static void Function(String)? _perceptionCallback;
   static void Function(String)? _speechResultCallback;
   static void Function(String)? _speechErrorCallback;
+  static void Function(String)? _speechPartialCallback;
   static void Function(String)? _documentCallback;
   static bool _handlerInstalled = false;
 
   static void _ensureHandler() {
     if (_handlerInstalled) return;
     _handlerInstalled = true;
-    _channel.setMethodCallHandler((call) async {
+    _channel.setMethodCallHandler((call) {
       switch (call.method) {
         case 'onPerceptionResult':
           _perceptionCallback?.call(call.arguments as String? ?? '');
@@ -313,6 +316,8 @@ class NativeBridge {
           _speechResultCallback?.call(call.arguments as String? ?? '');
         case 'onSpeechError':
           _speechErrorCallback?.call(call.arguments as String? ?? '');
+        case 'onSpeechPartial':
+          _speechPartialCallback?.call(call.arguments as String? ?? '');
         case 'onDocumentText':
           _documentCallback?.call(call.arguments as String? ?? '');
       }

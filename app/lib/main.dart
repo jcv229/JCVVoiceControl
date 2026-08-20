@@ -73,6 +73,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _tts.speak('Erreur de reconnaissance vocale : $e');
     });
 
+    // Résultats partiels : affichage en direct pour confirmer que le micro
+    // capte bien la voix, sans jamais exécuter de commande incomplète.
+    _asr.onPartial.listen((text) {
+      if (_listening) {
+        setState(() => _status = '🎙 $text');
+      }
+    });
+
     // Résultat asynchrone de la perception (texte reconnu / objets détectés).
     NativeBridge.setPerceptionListener((text) {
       setState(() {

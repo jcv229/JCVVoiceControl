@@ -21,6 +21,9 @@ abstract class AsrService {
   /// Flux des phrases reconnues.
   Stream<String> get onResult;
 
+  /// Flux des résultats partiels (affichage en direct, sans exécution).
+  Stream<String> get onPartial;
+
   /// Injecte manuellement une phrase (mode démonstration / tests).
   void inject(String phrase);
 }
@@ -32,6 +35,8 @@ abstract class AsrService {
 /// manquant, permission micro refusée) sont remontées via "onSpeechError".
 class VoskAsrService implements AsrService {
   final StreamController<String> _controller =
+      StreamController<String>.broadcast();
+  final StreamController<String> _partialController =
       StreamController<String>.broadcast();
 
   bool _listening = false;
@@ -47,6 +52,9 @@ class VoskAsrService implements AsrService {
         if (!_controller.isClosed) {
           _controller.addError(message);
         }
+      },
+      onPartial: (text) {
+        if (!_partialController.isClosed) _partialController.add(text);
       },
     );
   }
@@ -67,6 +75,9 @@ class VoskAsrService implements AsrService {
   Stream<String> get onResult => _controller.stream;
 
   @override
+  Stream<String> get onPartial => _partialController.stream;
+
+  @override
   void inject(String phrase) {
     if (!_controller.isClosed && phrase.trim().isNotEmpty) {
       _controller.add(phrase);
@@ -77,12 +88,15 @@ class VoskAsrService implements AsrService {
 
   void dispose() {
     _controller.close();
+    _partialController.close();
   }
 }
 
 /// Implémentation de démonstration (sans microphone).
 class MockAsrService implements AsrService {
   final StreamController<String> _controller =
+      StreamController<String>.broadcast();
+  final StreamController<String> _partialController =
       StreamController<String>.broadcast();
 
   @override
@@ -98,6 +112,9 @@ class MockAsrService implements AsrService {
   Stream<String> get onResult => _controller.stream;
 
   @override
+  Stream<String> get onPartial => _partialController.stream;
+
+  @override
   void inject(String phrase) {
     if (phrase.trim().isNotEmpty) {
       _controller.add(phrase);
@@ -106,5 +123,6 @@ class MockAsrService implements AsrService {
 
   void dispose() {
     _controller.close();
+    _partialController.close();
   }
 }
