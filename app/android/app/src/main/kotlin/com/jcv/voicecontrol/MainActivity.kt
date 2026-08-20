@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
                     }
                     "getInstalledPermissions" -> {
                         val packageName = call.argument<String>("packageName")
-                        result.success(PermissionHelper.getPermissions(this, packageName))
+                        result.success(PermissionHelper.getPermissions(this, packageName ?: ""))
                     }
                     "getBatteryLevel" -> {
                         result.success(getBatteryLevel())

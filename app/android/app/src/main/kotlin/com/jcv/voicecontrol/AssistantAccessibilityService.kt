@@ -109,8 +109,8 @@ class AssistantAccessibilityService : AccessibilityService() {
     }
 
     /** Effectue une action globale : retour, accueil, notifications, etc. */
-    fun performGlobalAction(action: Int): Boolean {
-        return performGlobalActionCompat(action)
+    override fun performGlobalAction(action: Int): Boolean {
+        return super.performGlobalAction(action)
     }
 
     /** Fait défiler l'écran vers le bas ou vers le haut. */
