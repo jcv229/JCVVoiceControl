@@ -9,7 +9,7 @@ on:
     branches: [ master, main ]
   workflow_dispatch: # permet un lancement manuel depuis l'onglet Actions
 
-# Un seul build à la fois (évite les compilations concurrentes inutiles).
+# Un seul build à la fois.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,12 +27,12 @@ jobs:
         uses: actions/checkout@v4
 
       # ------------------------------------------------------------------
-      # 2. Installer Flutter (version épinglée pour des builds reproductibles)
+      # 2. Installer Flutter (version épinglée)
       # ------------------------------------------------------------------
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'   # ⚠️ adapter à VOTRE version de Flutter
+          flutter-version: '3.24.5'
           channel: 'stable'
           cache: true
 
@@ -46,9 +46,32 @@ jobs:
           java-version: '17'
 
       # ------------------------------------------------------------------
-      # 4. Télécharger le modèle Vosk français (~40 Mo) — NON présent dans le repo
+      # 4. AUTO-RÉPARATION : télécharger le wrapper Gradle s'il est absent
+      #    (gradlew + gradle-wrapper.jar sont indispensables à flutter build)
       # ------------------------------------------------------------------
-      # Le projet Flutter est dans le sous-dossier "app/".
+      - name: Télécharger le wrapper Gradle (si absent)
+        run: |
+          cd app/android
+          if [ ! -f gradlew ]; then
+            echo "→ gradlew absent, téléchargement…"
+            curl -sL -o gradlew "https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradlew"
+            chmod +x gradlew
+          else
+            echo "✔ gradlew présent"
+          fi
+          mkdir -p gradle/wrapper
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "→ gradle-wrapper.jar absent, téléchargement…"
+            curl -sL -o gradle/wrapper/gradle-wrapper.jar \
+              "https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar"
+          else
+            echo "✔ gradle-wrapper.jar présent"
+          fi
+        shell: bash
+
+      # ------------------------------------------------------------------
+      # 5. Télécharger le modèle Vosk français (~40 Mo) — NON présent dans le repo
+      # ------------------------------------------------------------------
       - name: Télécharger le modèle Vosk français
         run: |
           cd app/android/app/src/main/assets/model-fr
@@ -58,37 +81,33 @@ jobs:
           rm model.zip
           cp -r vosk-model-small-fr-0.22/* .
           rm -rf vosk-model-small-fr-0.22
-          echo "✔ Modèle Vosk français installé :"
-          ls -la
+          uuidgen > uuid || cat /proc/sys/kernel/random/uuid > uuid
+          echo "✔ Modèle Vosk français installé"
         shell: bash
 
       # ------------------------------------------------------------------
-      # 5. Récupérer les dépendances Dart
+      # 6. Récupérer les dépendances Dart
       # ------------------------------------------------------------------
       - name: Récupérer les dépendances
         working-directory: app
         run: flutter pub get
 
       # ------------------------------------------------------------------
-      # 6. Vérifier la qualité (analyse statique + tests)
+      # 7. Tests unitaires
       # ------------------------------------------------------------------
-      - name: Analyse statique
-        working-directory: app
-        run: flutter analyze --no-pub || true
-
       - name: Tests unitaires
         working-directory: app
         run: flutter test
 
       # ------------------------------------------------------------------
-      # 7. Compiler l'APK release
+      # 8. Compiler l'APK release
       # ------------------------------------------------------------------
       - name: Compiler l'APK
         working-directory: app
         run: flutter build apk --release
 
       # ------------------------------------------------------------------
-      # 8. Publier l'APK en artefact (téléchargeable depuis l'onglet Actions)
+      # 9. Publier l'APK en artefact (téléchargeable)
       # ------------------------------------------------------------------
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
@@ -98,7 +117,7 @@ jobs:
           retention-days: 30
 
       # ------------------------------------------------------------------
-      # 9. (Optionnel) Créer une "release" GitHub si un tag v* est poussé
+      # 10. (Optionnel) Créer une release GitHub si un tag v* est poussé
       # ------------------------------------------------------------------
       - name: Créer une release GitHub (si tag)
         if: startsWith(github.ref, 'refs/tags/')
