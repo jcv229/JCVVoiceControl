@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
                     }
                     "getInstalledPermissions" -> {
                         val packageName = call.argument<String>("packageName")
-                        result.success(PermissionHelper.getPermissions(this, packageName ?: ""))
+                        result.success(PermissionHelper.getPermissions(this, packageName))
                     }
                     "getBatteryLevel" -> {
                         result.success(getBatteryLevel())
@@ -79,13 +79,13 @@ class MainActivity : FlutterActivity() {
                     "pressBack" -> {
                         result.success(
                             AssistantAccessibilityService.instance
-                                ?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK) ?: false
+                                ?.triggerGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK) ?: false
                         )
                     }
                     "pressHome" -> {
                         result.success(
                             AssistantAccessibilityService.instance
-                                ?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) ?: false
+                                ?.triggerGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) ?: false
                         )
                     }
                     "scrollDown" -> {

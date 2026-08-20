@@ -108,6 +108,10 @@ class AssistantAccessibilityService : AccessibilityService() {
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
+    /** Effectue une action globale : retour, accueil, notifications, etc. */
+    fun triggerGlobalAction(action: Int): Boolean {
+        return performGlobalActionCompat(action)
+    }
 
     /** Fait défiler l'écran vers le bas ou vers le haut. */
     fun scroll(down: Boolean): Boolean {
