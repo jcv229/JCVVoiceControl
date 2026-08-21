@@ -308,7 +308,7 @@ class NativeBridge {
   static void _ensureHandler() {
     if (_handlerInstalled) return;
     _handlerInstalled = true;
-    _channel.setMethodCallHandler((call) {
+    _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onPerceptionResult':
           _perceptionCallback?.call(call.arguments as String? ?? '');
@@ -321,6 +321,7 @@ class NativeBridge {
         case 'onDocumentText':
           _documentCallback?.call(call.arguments as String? ?? '');
       }
+      return null;
     });
   }
 }
