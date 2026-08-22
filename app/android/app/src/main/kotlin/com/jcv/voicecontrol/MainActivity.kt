@@ -32,6 +32,9 @@ class MainActivity : FlutterActivity() {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         // Expose le canal au pont de perception (résultats asynchrones de la caméra).
         PerceptionBridge.channel = channel
+        // Permet au service d'accessibilité d'envoyer les événements Volume+ à Flutter.
+        AssistantAccessibilityService.keyEventChannel = channel
+
         channel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "callNumber" -> {
@@ -187,17 +190,22 @@ class MainActivity : FlutterActivity() {
                         )
                     }
                     // --- Reconnaissance vocale (Vosk) ---
+                    // CORRECTIF CRITIQUE : les callbacks de VoskSpeechRecognizer arrivent
+                    // sur le thread audio d'arrière-plan. invokeMethod() DOIT être appelé
+                    // sur le thread principal, sinon l'app crashe (IllegalStateException)
+                    // dès que l'utilisateur termine de parler. C'était la cause du crash
+                    // observé après réinstallation.
                     "startListening" -> {
                         VoskSpeechRecognizer.start(
                             this,
                             onResult = { text ->
-                                channel.invokeMethod("onSpeechResult", text)
+                                runOnUiThread { channel.invokeMethod("onSpeechResult", text) }
                             },
                             onError = { message ->
-                                channel.invokeMethod("onSpeechError", message)
+                                runOnUiThread { channel.invokeMethod("onSpeechError", message) }
                             },
                             onPartial = { text ->
-                                channel.invokeMethod("onSpeechPartial", text)
+                                runOnUiThread { channel.invokeMethod("onSpeechPartial", text) }
                             }
                         )
                         result.success(true)
@@ -223,6 +231,13 @@ class MainActivity : FlutterActivity() {
                     }
                     "openAirplaneModeSettings" -> {
                         openSettingsPanel(Settings.ACTION_AIRPLANE_MODE_SETTINGS, result)
+                    }
+                    // --- Gestion d'appel via Volume+ (nouveau) ---
+                    "answerCall" -> {
+                        result.success(AssistantAccessibilityService.instance?.answerOrHangupCall() ?: false)
+                    }
+                    "rejectCall" -> {
+                        result.success(AssistantAccessibilityService.instance?.rejectCall() ?: false)
                     }
                     else -> result.notImplemented()
                 }
